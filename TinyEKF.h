@@ -25,14 +25,14 @@
 #ifndef MAIN
 extern "C" {
 #endif
-    void ekf_init(void *, int, int);
+    void ekf_init(void *, int, int, int);
     int ekf_step(void *, double *);
 #ifndef MAIN
 }
 #endif
 
 /**
- * A header-only class for the Extended Kalman Filter.  Your implementing class should #define the constant N and 
+ * A header-only class for the Extended Kalman Filter.  Your implementing class should #define the constants N,M,S and
  * and then #include <TinyEKF.h>  You will also need to implement a model() method for your application.
  */
 class TinyEKF {
@@ -51,9 +51,9 @@ class TinyEKF {
         /**
          * Initializes a TinyEKF object.
          */
-        TinyEKF() { 
-            ekf_init(&this->ekf, Nsta, Mobs); 
-            this->x = this->ekf.x; 
+        TinyEKF() {
+            ekf_init(&this->ekf, Nsta, Mobs, Sinp);
+            this->x = this->ekf.x;
         }
 
         /**
@@ -65,10 +65,11 @@ class TinyEKF {
          * Implement this function for your EKF model.
          * @param fx gets output of state-transition function <i>f(x<sub>0 .. n-1</sub>)</i>
          * @param F gets <i>n &times; n</i> Jacobian of <i>f(x)</i>
+         * @param L gets <i>n &times; s</i> Jacobian of <i>f(x)</i>
          * @param hx gets output of observation function <i>h(x<sub>0 .. n-1</sub>)</i>
          * @param H gets <i>m &times; n</i> Jacobian of <i>h(x)</i>
          */
-        virtual void model(double fx[Nsta], double F[Nsta][Nsta], double hx[Mobs], double H[Mobs][Nsta]) = 0;
+        virtual void model(double fx[Nsta], double F[Nsta][Nsta], double L[Nsta][Sinp], double hx[Mobs], double H[Mobs][Nsta]) = 0;
 
         /**
          * Sets the specified value of the prediction error covariance. <i>P<sub>i,j</sub> = value</i>
@@ -76,9 +77,9 @@ class TinyEKF {
          * @param j column index
          * @param value value to set
          */
-        void setP(int i, int j, double value) 
-        { 
-            this->ekf.P[i][j] = value; 
+        void setP(int i, int j, double value)
+        {
+            this->ekf.P[i][j] = value;
         }
 
         /**
@@ -87,9 +88,9 @@ class TinyEKF {
          * @param j column index
          * @param value value to set
          */
-        void setQ(int i, int j, double value) 
-        { 
-            this->ekf.Q[i][j] = value; 
+        void setQ(int i, int j, double value)
+        {
+            this->ekf.Q[i][j] = value;
         }
 
         /**
@@ -98,9 +99,20 @@ class TinyEKF {
          * @param j column index
          * @param value value to set
          */
-        void setR(int i, int j, double value) 
-        { 
-            this->ekf.R[i][j] = value; 
+        void setR(int i, int j, double value)
+        {
+            this->ekf.R[i][j] = value;
+        }
+
+        /**
+         * Sets the specified value of the input noise covariance. <i>Y<sub>i,j</sub> = value</i>
+         * @param i row index
+         * @param j column index
+         * @param value value to set
+         */
+        void setY(int i, int j, double value)
+        {
+            this->ekf.Y[i][j] = value;
         }
 
     public:
@@ -110,9 +122,9 @@ class TinyEKF {
          * @param i the index (at least 0 and less than <i>n</i>
          * @return state value at index
          */
-        double getX(int i) 
-        { 
-            return this->ekf.x[i]; 
+        double getX(int i)
+        {
+            return this->ekf.x[i];
         }
 
         /**
@@ -120,9 +132,9 @@ class TinyEKF {
          * @param i the index (at least 0 and less than <i>n</i>
          * @param value value to set
          */
-        void setX(int i, double value) 
-        { 
-            this->ekf.x[i] = value; 
+        void setX(int i, double value)
+        {
+            this->ekf.x[i] = value;
         }
 
         /**
@@ -130,9 +142,9 @@ class TinyEKF {
          * @param z observation vector, length <i>m</i>
          * @return true on success, false on failure caused by non-positive-definite matrix.
          */
-        bool step(double * z) 
-        { 
-            this->model(this->ekf.fx, this->ekf.F, this->ekf.hx, this->ekf.H); 
+        bool step(double * z)
+        {
+            this->model(this->ekf.fx, this->ekf.F, this->ekf.L, this->ekf.hx, this->ekf.H);
 
             return ekf_step(&this->ekf, z) ? false : true;
         }

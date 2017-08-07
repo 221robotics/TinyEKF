@@ -49,11 +49,11 @@ static int choldc1(double * a, double * p, int n) {
     return 0; /* success */
 }
 
-static int choldcsl(double * A, double * a, double * p, int n) 
+static int choldcsl(double * A, double * a, double * p, int n)
 {
     int i,j,k; double sum;
-    for (i = 0; i < n; i++) 
-        for (j = 0; j < n; j++) 
+    for (i = 0; i < n; i++)
+        for (j = 0; j < n; j++)
             a[i*n+j] = A[i*n+j];
     if (choldc1(a, p, n)) return 1;
     for (i = 0; i < n; i++) {
@@ -71,7 +71,7 @@ static int choldcsl(double * A, double * a, double * p, int n)
 }
 
 
-static int cholsl(double * A, double * a, double * p, int n) 
+static int cholsl(double * A, double * a, double * p, int n)
 {
     int i,j,k;
     if (choldcsl(A,a,p,n)) return 1;
@@ -158,7 +158,7 @@ static void transpose(double * a, double * at, int m, int n)
 
 /* A <- A + B */
 static void accum(double * a, double * b, int m, int n)
-{        
+{
     int i,j;
 
     for(i=0; i<m; ++i)
@@ -186,7 +186,7 @@ static void sub(double * a, double * b, double * c, int n)
 }
 
 static void negate(double * a, int m, int n)
-{        
+{
     int i, j;
 
     for(i=0; i<m; ++i)
@@ -210,15 +210,18 @@ typedef struct {
     double * x;    /* state vector */
 
     double * P;  /* prediction error covariance */
+    double * Y;  /* input noise covariance */
     double * Q;  /* process noise covariance */
     double * R;  /* measurement error covariance */
 
     double * G;  /* Kalman gain; a.k.a. K */
 
     double * F;  /* Jacobian of process model */
+    double * L;  /* Jacobian of input model */
     double * H;  /* Jacobian of measurement model */
 
     double * Ht; /* transpose of measurement Jacobian */
+    double * Lt; /* transpose of input Jacobian */
     double * Ft; /* transpose of process Jacobian */
     double * Pp; /* P, post-prediction, pre-update */
 
@@ -231,11 +234,12 @@ typedef struct {
     double * tmp2;
     double * tmp3;
     double * tmp4;
-    double * tmp5; 
+    double * tmp5;
+    double * tmp6;
 
 } ekf_t;
 
-static void unpack(void * v, ekf_t * ekf, int n, int m)
+static void unpack(void * v, ekf_t * ekf, int n, int m, int s)
 {
     /* skip over n, m in data structure */
     char * cptr = (char *)v;
@@ -246,6 +250,8 @@ static void unpack(void * v, ekf_t * ekf, int n, int m)
     dptr += n;
     ekf->P = dptr;
     dptr += n*n;
+    ekf->Y = dptr;
+    dptr += s*s;
     ekf->Q = dptr;
     dptr += n*n;
     ekf->R = dptr;
@@ -254,10 +260,14 @@ static void unpack(void * v, ekf_t * ekf, int n, int m)
     dptr += n*m;
     ekf->F = dptr;
     dptr += n*n;
+    ekf->L = dptr;
+    dptr += n*s;
     ekf->H = dptr;
     dptr += m*n;
     ekf->Ht = dptr;
     dptr += n*m;
+    ekf->Lt = dptr;
+    dptr += s*n;
     ekf->Ft = dptr;
     dptr += n*n;
     ekf->Pp = dptr;
@@ -277,45 +287,58 @@ static void unpack(void * v, ekf_t * ekf, int n, int m)
     ekf->tmp4 = dptr;
     dptr += m*m;
     ekf->tmp5 = dptr;
+    dptr += m;
+    ekf->tmp6 = dptr;
   }
 
-void ekf_init(void * v, int n, int m)
+void ekf_init(void * v, int n, int m, int s)
 {
-    /* retrieve n, m and set them in incoming data structure */
+    /* retrieve n, m, s and set them in incoming data structure */
     int * ptr = (int *)v;
     *ptr = n;
     ptr++;
     *ptr = m;
+    ptr++;
+    *ptr = s;
 
     /* unpack rest of incoming structure for initlization */
     ekf_t ekf;
-    unpack(v, &ekf, n, m);
+    unpack(v, &ekf, n, m, s);
 
     /* zero-out matrices */
     zeros(ekf.P, n, n);
+    zeros(ekf.Y, s, s);
     zeros(ekf.Q, n, n);
     zeros(ekf.R, m, m);
     zeros(ekf.G, n, m);
     zeros(ekf.F, n, n);
+    zeros(ekf.L, n, s);
     zeros(ekf.H, m, n);
 }
 
 int ekf_step(void * v, double * z)
-{        
+{
     /* unpack incoming structure */
 
     int * ptr = (int *)v;
     int n = *ptr;
     ptr++;
     int m = *ptr;
+    ptr++;
+    int s = *ptr;
 
     ekf_t ekf;
-    unpack(v, &ekf, n, m); 
- 
-    /* P_k = F_{k-1} P_{k-1} F^T_{k-1} + Q_{k-1} */
+    unpack(v, &ekf, n, m, s);
+
+    // NON-ADDITIVE
+    /* P_k = F_{k-1} P_{k-1} F^T_{k-1} + L_{k-1} Y_{k-1} L^T_{k-1} + Q_{k-1} */
     mulmat(ekf.F, ekf.P, ekf.tmp0, n, n, n);
     transpose(ekf.F, ekf.Ft, n, n);
     mulmat(ekf.tmp0, ekf.Ft, ekf.Pp, n, n, n);
+    mulmat(ekf.L, ekf.Y, ekf.tmp6, n, s, s);
+    transpose(ekf.L, ekf.Lt, n, s);
+    mulmat(ekf.tmp6, ekf.Lt, ekf.tmp0, n, s, n);
+    accum(ekf.Pp, ekf.tmp0, n, n);
     accum(ekf.Pp, ekf.Q, n, n);
 
     /* G_k = P_k H^T_k (H_k P_k H^T_k + R)^{-1} */

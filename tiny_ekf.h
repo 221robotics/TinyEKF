@@ -23,25 +23,30 @@
   * @param ekf pointer to EKF structure to initialize
   * @param n number of state variables
   * @param m number of observables
+  * @param s number of input variables
   *
-  * <tt>ekf</tt> should be a pointer to a structure defined as follows, where <tt>N</tt> and </tt>M</tt> are 
+  * <tt>ekf</tt> should be a pointer to a structure defined as follows, where <tt>N</tt>, </tt>M</tt>, and </tt>S</tt> are
   * constants:
   * <pre>
-        int n;           // number of state values 
-        int m;           // number of observables 
+        int n;           // number of state values
+        int m;           // number of observables
+        int s;           // number of input values
 
         double x[N];     // state vector
 
         double P[N][N];  // prediction error covariance
-        double Q[N][N];  // process noise covariance 
+        double Y[S][S];  // input noise covariance
+        double Q[N][N];  // process noise covariance
         double R[M][M];  // measurement error covariance
 
         double G[N][M];  // Kalman gain; a.k.a. K
 
         double F[N][N];  // Jacobian of process model
+        double L[N][S];  // Jacobian of input model
         double H[M][N];  // Jacobian of measurement model
 
         double Ht[N][M]; // transpose of measurement Jacobian
+        double Lt[S][N]; // transpose of input Jacobian
         double Ft[N][N]; // transpose of process Jacobian
         double Pp[N][N]; // P, post-prediction, pre-update
 
@@ -54,15 +59,16 @@
         double tmp2[M][N];
         double tmp3[M][M];
         double tmp4[M][M];
-        double tmp5[M]; 
+        double tmp5[M];
+        double tmp6[N][S];
     * </pre>
   */
-void ekf_init(void * ekf, int n, int m);
+void ekf_init(void * ekf, int n, int m, int s);
 
 /**
   * Runs one step of EKF prediction and update. Your code should first build a model, setting
-  * the contents of <tt>ekf.fx</tt>, <tt>ekf.F</tt>, <tt>ekf.hx</tt>, and <tt>ekf.H</tt> to appropriate values.
-  * @param ekf pointer to structure EKF 
+  * the contents of <tt>ekf.fx</tt>, <tt>ekf.F</tt>, <tt>ekf.L</tt>, <tt>ekf.hx</tt>, and <tt>ekf.H</tt> to appropriate values.
+  * @param ekf pointer to structure EKF
   * @param z array of measurement (observation) values
   * @return 0 on success, 1 on failure caused by non-positive-definite matrix.
   */

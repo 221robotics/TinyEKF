@@ -24,19 +24,23 @@ typedef struct {
 
     int n;          /* number of state values */
     int m;          /* number of observables */
+    int s;          /* number of input values */
 
     double x[Nsta];    /* state vector */
 
     double P[Nsta][Nsta];  /* prediction error covariance */
+    double Y[Sinp][Sinp];  /* input noise covariance */
     double Q[Nsta][Nsta];  /* process noise covariance */
     double R[Mobs][Mobs];  /* measurement error covariance */
 
     double G[Nsta][Mobs];  /* Kalman gain; a.k.a. K */
 
     double F[Nsta][Nsta];  /* Jacobian of process model */
+    double L[Nsta][Sinp];  /* Jacobian of input model */
     double H[Mobs][Nsta];  /* Jacobian of measurement model */
 
     double Ht[Nsta][Mobs]; /* transpose of measurement Jacobian */
+    double Lt[Sinp][Nsta]; /* transpose of input Jacobian */
     double Ft[Nsta][Nsta]; /* transpose of process Jacobian */
     double Pp[Nsta][Nsta]; /* P, post-prediction, pre-update */
 
@@ -50,5 +54,6 @@ typedef struct {
     double tmp3[Mobs][Mobs];
     double tmp4[Mobs][Mobs];
     double tmp5[Mobs]; 
+    double tmp6[Nsta][Sinp];
 
 } ekf_t;        
