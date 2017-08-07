@@ -65,7 +65,7 @@ class TinyEKF {
          * Implement this function for your EKF model.
          * @param fx gets output of state-transition function <i>f(x<sub>0 .. n-1</sub>)</i>
          * @param F gets <i>n &times; n</i> Jacobian of <i>f(x)</i>
-         * @param L gets <i>n &times; s</i> Jacobian of <i>f(x)</i>
+         * @param L gets <i>n &times; s</i> Jacobian of <i>input model</i>
          * @param hx gets output of observation function <i>h(x<sub>0 .. n-1</sub>)</i>
          * @param H gets <i>m &times; n</i> Jacobian of <i>h(x)</i>
          */
