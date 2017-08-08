@@ -241,9 +241,9 @@ typedef struct {
 
 static void unpack(void * v, ekf_t * ekf, int n, int m, int s)
 {
-    /* skip over n, m in data structure */
+    /* skip over n, m, s in data structure */
     char * cptr = (char *)v;
-    cptr += 2*sizeof(int);
+    cptr += 3*sizeof(int);
 
     double * dptr = (double *)cptr;
     ekf->x = dptr;
