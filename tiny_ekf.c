@@ -243,7 +243,8 @@ static void unpack(void * v, ekf_t * ekf, int n, int m, int s)
 {
     /* skip over n, m, s in data structure */
     char * cptr = (char *)v;
-    cptr += 3*sizeof(int);
+    /* due to struct packing, we actually have to increment by 4 instead of 3 */
+    cptr += 4*sizeof(int);
 
     double * dptr = (double *)cptr;
     ekf->x = dptr;
